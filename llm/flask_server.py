@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
@@ -27,22 +28,17 @@ tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
 pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
 
-# Test prompt
-# prompt = "Explain the significance of the moon landing in 1969."
-# result = pipe(prompt, max_length=200, temperature=0.7)
-# print(result[0]['generated_text'])
-
-
-@app.route('/query', methods=['POST'])
-def query_model():
-    data = request.json
-    user_input = data.get('question', '')
-    print("User input: ", user_input)
+@app.route('/echo', methods=['POST'])
+def echo():
+    data = request.get_json()
+    message = data.get('message', '')
+    print("User input: ", message)
     
-    result = pipe(user_input, max_length=200, temperature=0.7)
+    result = pipe(message, max_length=200, temperature=0.7)
     
-    return jsonify({'response': result})
+
+    # message = "woot woot"
+    return jsonify({'echo': result})
 
 if __name__ == '__main__':
-    print("App running")
-    app.run(port=5000)
+    app.run(debug=False)

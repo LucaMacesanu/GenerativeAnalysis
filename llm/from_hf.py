@@ -1,13 +1,12 @@
-from flask import Flask, request, jsonify
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
+# # Use a pipeline as a high-level helper
+# from transformers import pipeline
+
+# pipe = pipeline("text-generation", model="meta-llama/Llama-2-7b-hf")
+
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-
-app = Flask(__name__)
-
 
 # Configure 4-bit quantization
 bnb_config = BitsAndBytesConfig(
@@ -28,21 +27,10 @@ tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
 
 # Test prompt
-# prompt = "Explain the significance of the moon landing in 1969."
-# result = pipe(prompt, max_length=200, temperature=0.7)
-# print(result[0]['generated_text'])
+prompt = "Explain the significance of the moon landing in 1969."
+result = pipe(prompt, max_length=200, temperature=0.7)
+print(result[0]['generated_text'])
 
 
-@app.route('/query', methods=['POST'])
-def query_model():
-    data = request.json
-    user_input = data.get('question', '')
-    print("User input: ", user_input)
-    
-    result = pipe(user_input, max_length=200, temperature=0.7)
-    
-    return jsonify({'response': result})
 
-if __name__ == '__main__':
-    print("App running")
-    app.run(port=5000)
+breakpoint()
