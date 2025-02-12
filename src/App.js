@@ -31,14 +31,40 @@ const App = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = () => {
-    if (!input.trim() || !socket) return;
+  // const sendMessage = () => {
+  //   if (!input.trim() || !socket) return;
+  //   const userMessage = { text: input, sender: "user" };
+  //   setMessages((prev) => [...prev, userMessage]);
+
+  //   socket.send(JSON.stringify({ action: "sendMessage", message: input }));
+  //   setInput("");
+  // };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    
     const userMessage = { text: input, sender: "user" };
     setMessages((prev) => [...prev, userMessage]);
-
-    socket.send(JSON.stringify({ action: "sendMessage", message: input }));
+  
+    try {
+      const response = await fetch('http://127.0.0.1:5000/echo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: input })
+      });
+  
+      const data = await response.json();
+      setMessages((prev) => [...prev, { text: data.echo, sender: "bot" }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages((prev) => [...prev, { text: "Failed to get a response from the server.", sender: "bot" }]);
+    }
+  
     setInput("");
   };
+
 
   return (
       <div className="chat-container">

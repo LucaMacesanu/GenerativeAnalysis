@@ -6,8 +6,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 
 # Configure 4-bit quantization
@@ -34,11 +36,12 @@ def echo():
     message = data.get('message', '')
     print("User input: ", message)
     
-    result = pipe(message, max_length=200, temperature=0.7)
+    result = pipe(message, max_length=200, temperature=0.5, truncation=True)
+    output = result[0]['generated_text']
     
 
     # message = "woot woot"
-    return jsonify({'echo': result})
+    return jsonify({'echo': output})
 
 if __name__ == '__main__':
     app.run(debug=False)
