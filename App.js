@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import axios from "axios";
 import "./App.css";
+
+const WEBSOCKET_URL = "wss://pdobdpl064.execute-api.us-east-1.amazonaws.com/production/";
 
 const App = () => {
   const [user, setUser] = useState("");
@@ -14,18 +15,20 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(
     localStorage.getItem("user") ? true : false
   );
+  const [socket, setSocket] = useState(null);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (isAuthenticated) {
       const currentUser = localStorage.getItem("user");
-      const storedChats = JSON.parse(localStorage.getItem(`chats_${currentUser}`)) || [
-        {
-          id: 0,
-          title: "Chat 1",
-          messages: [{ text: "Hello! How can I help you?", sender: "bot" }],
-        },
-      ];
+      const storedChats =
+        JSON.parse(localStorage.getItem(`chats_${currentUser}`)) || [
+          {
+            id: 0,
+            title: "Chat 1",
+            messages: [{ text: "Hello! How can I help you?", sender: "bot" }],
+          },
+        ];
       setChats(storedChats);
     }
   }, [isAuthenticated]);
@@ -35,6 +38,35 @@ const App = () => {
       localStorage.setItem(`chats_${user}`, JSON.stringify(chats));
     }
   }, [chats, isAuthenticated, user]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const ws = new WebSocket(WEBSOCKET_URL);
+
+      ws.onopen = () => console.log("Connected to WebSocket API");
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat.id === activeChat
+              ? {
+                  ...chat,
+                  messages: [...chat.messages, { text: data.message, sender: "bot" }],
+                }
+              : chat
+          )
+        );
+      };
+      ws.onclose = () => console.log("WebSocket Disconnected");
+      ws.onerror = (error) => console.error("WebSocket Error:", error);
+
+      setSocket(ws);
+
+      return () => {
+        ws.close();
+      };
+    }
+  }, [isAuthenticated, activeChat]);
 
   const handleRegister = () => {
     if (user && password) {
@@ -67,8 +99,8 @@ const App = () => {
     setIsAuthenticated(false);
   };
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  const sendMessage = () => {
+    if (!input.trim() || !socket) return;
 
     setChats((prevChats) =>
       prevChats.map((chat) =>
@@ -81,22 +113,7 @@ const App = () => {
       )
     );
 
-    try {
-      const response = await axios.post("http://127.0.0.1:5000/query", { question: input });
-      const botMessage = { text: response.data.response, sender: "bot" };
-      setChats((prevChats) =>
-        prevChats.map((chat) =>
-          chat.id === activeChat
-            ? {
-                ...chat,
-                messages: [...chat.messages, botMessage],
-              }
-            : chat
-        )
-      );
-    } catch (error) {
-      console.error("Error fetching response:", error);
-    }
+    socket.send(JSON.stringify({ action: "sendMessage", message: input }));
 
     setInput("");
   };
@@ -105,13 +122,16 @@ const App = () => {
     <div className="chat-container">
       {isAuthenticated ? (
         <div className="chat-main">
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
           <div className="messages">
             {chats[activeChat]?.messages.map((msg, index) => (
               <div key={index} className={`message ${msg.sender}`}>
                 <div className="bubble">{msg.text}</div>
               </div>
             ))}
+            <div ref={chatEndRef} />
           </div>
           <div className="input-area">
             <input
@@ -124,12 +144,44 @@ const App = () => {
           </div>
         </div>
       ) : (
-        <div className="login-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '32px', marginBottom: '20px' }}>TI Generative AI Tool</h2>
-          <input type="text" placeholder="Username" value={user} onChange={(e) => setUser(e.target.value)} style={{ marginBottom: '10px', padding: '10px', fontSize: '16px' }} />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ marginBottom: '20px', padding: '10px', fontSize: '16px' }} />
-          <button onClick={handleLogin} style={{ marginBottom: '10px', padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>Login</button>
-          <button onClick={handleRegister} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}>Register</button>
+        <div
+          className="login-container"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            textAlign: "center",
+          }}
+        >
+          <h2 style={{ fontSize: "32px", marginBottom: "20px" }}>TI Generative AI Tool</h2>
+          <input
+            type="text"
+            placeholder="Username"
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            style={{ marginBottom: "10px", padding: "10px", fontSize: "16px" }}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ marginBottom: "20px", padding: "10px", fontSize: "16px" }}
+          />
+          <button
+            onClick={handleLogin}
+            style={{ marginBottom: "10px", padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
+          >
+            Login
+          </button>
+          <button
+            onClick={handleRegister}
+            style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer" }}
+          >
+            Register
+          </button>
         </div>
       )}
     </div>
